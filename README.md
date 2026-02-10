@@ -222,7 +222,7 @@ print(comparison)
 
 In addition to the R package, OPTIVAL is also available as a web application hosted at:
 
-**[Your Faculty Server URL]**
+**http://psicor.fcep.urv.cat/miapp/OPTIVAL/**
 
 This allows use without installing R or any packages. Simply upload your data file through the web interface.
 
