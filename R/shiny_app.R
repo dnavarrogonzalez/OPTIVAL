@@ -33,10 +33,34 @@
 #' @export
 #' @importFrom shiny runApp
 run_optival <- function() {
+  # Primary lookup: works when the package is properly installed
   app_dir <- system.file("shiny-app/app", package = "OPTIVAL")
   
-  if (app_dir == "") {
-    stop("Could not find Shiny app directory. Try re-installing OPTIVAL.")
+  # Fallback: works during development (devtools::load_all() or direct source())
+  if (app_dir == "" || !dir.exists(app_dir)) {
+    # Walk up from this file's location to find the package root
+    this_file <- tryCatch(
+      normalizePath(sys.frames()[[1]]$ofile),
+      error = function(e) NULL
+    )
+    if (!is.null(this_file)) {
+      pkg_root <- dirname(dirname(this_file))  # R/ -> package root
+    } else {
+      pkg_root <- getwd()
+    }
+    app_dir <- file.path(pkg_root, "inst", "shiny-app", "app")
+  }
+  
+  if (!dir.exists(app_dir)) {
+    stop(paste0(
+      "Could not find the Shiny app directory.\n",
+      "  Searched: ", app_dir, "\n",
+      "If running from source, make sure your working directory is inside ",
+      "the OPTIVAL package folder, or install the package first:\n",
+      "  devtools::install('path/to/OPTIVAL-main')\n",
+      "  library(OPTIVAL)\n",
+      "  run_optival()"
+    ))
   }
   
   shiny::runApp(app_dir, display.mode = "normal")
