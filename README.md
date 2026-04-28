@@ -54,7 +54,7 @@ You can install OPTIVAL directly from GitHub:
 install.packages("devtools")
 
 # Install OPTIVAL
-devtools::install_github("dnavarro991/OPTIVAL")
+devtools::install_github("dnavarrogonzalez/OPTIVAL")
 ```
 
 ## Quick Start
@@ -308,4 +308,4 @@ This package is licensed under the GNU General Public License v3.0 (GPL-3). See 
 ## Contact
 
 - **David Navarro-González**: david.navarro@urv.cat
-- **GitHub Issues**: [https://github.com/dnavarro991/OPTIVAL/issues](https://github.com/dnavarro991/OPTIVAL/issues)
+- **GitHub Issues**: [https://github.com/dnavarrogonzalez/OPTIVAL/issues](https://github.com/dnavarrogonzalez/OPTIVAL/issues)
