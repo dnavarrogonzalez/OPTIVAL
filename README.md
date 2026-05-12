@@ -12,7 +12,7 @@
 The package is particularly useful for:
 - **Scale development and refinement**: Identifying the most informative items for predicting external criteria
 - **Test shortening**: Reducing test length while maintaining or maximizing predictive validity
-- **Validity optimization**: Systematically improving the external validity of non-cognitive measures
+- **Validity optimization**: Systematically improving the external validity of noncognitive measures
 
 ## Key Features
 
