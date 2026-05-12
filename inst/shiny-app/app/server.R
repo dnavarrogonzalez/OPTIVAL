@@ -240,13 +240,14 @@ server <- function(input, output, session) {
     req(values$results)
     res <- values$results
     
+    sel_order <- res$item_order  # índices originales en orden de entrada
     results_df <- data.frame(
-      Item = 1:res$n_items,
-      Loading = round(res$item_loadings, 4),
-      `Validity (Bootstrap)` = round(res$validity_indices, 4),
-      `Incremental Validity` = round(res$incremental_validity, 4),
-      Order = match(1:res$n_items, res$item_order),
-      Selected = ifelse(1:res$n_items %in% res$optimal_items, "Yes", "No"),
+      Rank = 1:res$n_items,
+      Item = sel_order,
+      Loading = round(res$item_loadings[sel_order], 4),
+      `Validity (Bootstrap)` = round(res$validity_indices[sel_order], 4),
+      `Incremental Validity` = round(res$incremental_validity, 4),  # ya en orden de selección
+      Selected = ifelse(sel_order %in% res$optimal_items, "Yes", "No"),
       check.names = FALSE
     )
     
