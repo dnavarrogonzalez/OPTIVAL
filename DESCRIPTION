@@ -7,7 +7,7 @@ Authors@R: c(
     person("David", "Navarro-González", 
            email = "david.navarro@urv.cat", 
            role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0002-7529-6477")),
+           comment = c(ORCID = "0000-0002-9843-5058")),
     person("Pere J.", "Ferrando",
            role = "aut",
            comment = c(ORCID = "0000-0002-3133-5466")),
