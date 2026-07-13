@@ -174,6 +174,7 @@
 #' 
 #' @export
 #' @importFrom lavaan cfa standardizedSolution fitMeasures
+#' @importFrom stats cor lm
 OPTIVAL <- function(data_matrix, 
                     precalibrated_loadings = NULL,
                     n_bootstrap = 2000,
