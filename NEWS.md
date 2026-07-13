@@ -41,4 +41,6 @@ This is the first public release of OPTIVAL.
 
 ### References
 
-Pending.
+P.J. Ferrando, F. Morales-Vives, S. Durán-Bonavila, D. Navarro-González, Assessing the unconditional and conditional external validity of noncognitive test scores: A unifying model-based proposal, Educational and Psycholical Measurement (2026). https://doi.org/10.1177/00131644261440168
+
+P.J. Ferrando, D. Navarro-González, F. Morales-Vives, Revisiting the test-length and validity problem from a model-based view: A proposal and recommendations, Anales en Psicología (under review).

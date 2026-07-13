@@ -29,6 +29,14 @@
 #'   validation of model predictions. Default is 2000. Higher values provide
 #'   more stable estimates but increase computation time.
 #'   
+#' @param efficiency_threshold Numeric in (0, 1). Items contributing less than
+#'   this proportion of the maximum incremental validity are flagged as providing
+#'   negligible additional information (efficiency criterion). Default is 0.10.
+#'   
+#' @param effectiveness_threshold Numeric in (0, 1). Minimum proportion of the
+#'   maximum achievable validity that the selected subset must capture
+#'   (effectiveness criterion). Default is 0.95.
+#'   
 #' @param verbose Logical. If \code{TRUE}, prints progress messages during
 #'   execution. Default is \code{FALSE}.
 #'   
@@ -169,6 +177,8 @@
 OPTIVAL <- function(data_matrix, 
                     precalibrated_loadings = NULL,
                     n_bootstrap = 2000,
+                    efficiency_threshold = 0.10,
+                    effectiveness_threshold = 0.95,
                     verbose = FALSE) {
   
   # Standardize data matrix
@@ -190,31 +200,35 @@ OPTIVAL <- function(data_matrix,
     colnames(Z_total) <- paste0("V", 1:n_vars)
     df_cfa <- as.data.frame(Z_total)
     
-    tryCatch({
+    calib <- tryCatch({
       fit <- lavaan::cfa(model_syntax, data = df_cfa, estimator = "MLM", std.lv = TRUE)
       
       std_solution <- lavaan::standardizedSolution(fit)
       loadings_all <- std_solution$est.std[std_solution$op == "=~"]
       
-      item_loadings <- loadings_all[1:n_items]
-      criterion_loading <- loadings_all[n_vars]
-      
-      fit_measures <- lavaan::fitMeasures(fit, c("chisq", "df", "pvalue", 
-                                         "cfi", "tli", "rmsea", 
-                                         "rmsea.ci.lower", "rmsea.ci.upper",
-                                         "srmr"))
-      
+      list(item_loadings = loadings_all[1:n_items],
+           criterion_loading = loadings_all[n_vars],
+           fit_measures = lavaan::fitMeasures(fit, c("chisq", "df", "pvalue", 
+                                              "cfi", "tli", "rmsea", 
+                                              "rmsea.ci.lower", "rmsea.ci.upper",
+                                              "srmr")))
     }, error = function(e) {
-      # Fallback: use correlation-based estimates
+      # Fallback: use correlation-based (first principal component) estimates
+      warning("CFA estimation failed (", conditionMessage(e), 
+              "). Using correlation-based estimates for the loadings.")
       cor_matrix <- cor(Z_total)
       eigen_decomp <- eigen(cor_matrix)
       loadings_pc <- eigen_decomp$vectors[, 1] * sqrt(eigen_decomp$values[1]) / 
         sqrt(eigen_decomp$values[1] + 1)
+      loadings_pc <- loadings_pc * sign(sum(loadings_pc))
       
-      item_loadings <<- loadings_pc[1:n_items]
-      criterion_loading <<- loadings_pc[n_vars]
-      fit_measures <<- NULL
+      list(item_loadings = loadings_pc[1:n_items],
+           criterion_loading = loadings_pc[n_vars],
+           fit_measures = NULL)
     })
+    item_loadings <- calib$item_loadings
+    criterion_loading <- calib$criterion_loading
+    fit_measures <- calib$fit_measures
     
   } else {
     # Use precalibrated loadings
@@ -236,9 +250,9 @@ OPTIVAL <- function(data_matrix,
     }
     
     if (length(precalibrated_loadings) != n_vars) {
-      stop(sprintf("Length of precalibrated_loadings (%d) must equal total number of variables (%d). 
-                Following MATLAB convention, loadings vector should include 
-                item loadings (1:%d) and criterion loading (last position).", 
+      stop(sprintf("Length of precalibrated_loadings (%d) must equal the total number of variables (%d): 
+                the vector must include the item loadings (1:%d) followed by 
+                the criterion loading in the last position.", 
                    length(precalibrated_loadings), n_vars, n_items))
     }
     
@@ -247,27 +261,6 @@ OPTIVAL <- function(data_matrix,
     criterion_loading <- precalibrated_loadings[n_vars]
     fit_measures <- NULL
     
-    # Still need to estimate criterion loading using CFA (original OPTIVAL method)
-    model_syntax <- paste0("F =~ ", paste0("V", 1:n_vars, collapse = " + "))
-    colnames(Z_total) <- paste0("V", 1:n_vars)
-    df_cfa <- as.data.frame(Z_total)
-    
-    tryCatch({
-      fit <- lavaan::cfa(model_syntax, data = df_cfa, estimator = "MLM", std.lv = TRUE)
-      std_solution <- lavaan::standardizedSolution(fit)
-      fit_measures <- NULL
-    }, error = function(e) {
-      # Fallback: use correlation-based estimate if CFA fails
-      test_scores <- Z_items %*% matrix(item_loadings, ncol = 1)
-      r_test_criterion <- cor(test_scores, z_criterion)[1,1]
-      lambda_matrix <- matrix(item_loadings, ncol = 1)
-      reliability <- as.numeric((t(lambda_matrix) %*% lambda_matrix) / 
-                                  (t(lambda_matrix) %*% lambda_matrix + sum(1 - item_loadings^2)))
-      criterion_loading <<- r_test_criterion / sqrt(reliability)
-      criterion_loading <<- min(max(criterion_loading, 0), 1)
-      fit_measures <<- NULL
-      warning("CFA did not converge. Using correlation-based estimate for criterion loading.")
-    })
   }
   
   # Order items by loading
@@ -304,7 +297,7 @@ OPTIVAL <- function(data_matrix,
   
   # Method 1: Elbow based on relative increments (original method)
   max_delta <- max(burisch_results$deltabur)
-  relative_threshold <- 0.10  # 10% of maximum increment
+  relative_threshold <- efficiency_threshold
   absolute_threshold <- max_delta * relative_threshold
   
   method1_n <- which(burisch_results$deltabur < absolute_threshold)[1]
@@ -323,7 +316,7 @@ OPTIVAL <- function(data_matrix,
   
   # Method 2: Proximity to maximum validity (NEW)
   # Find first point where we reach X% of maximum possible validity
-  proximity_threshold <- 0.95  # 95% of maximum validity (configurable)
+  proximity_threshold <- effectiveness_threshold
   validity_ratio <- validity_results$medparc / max_validity
   method2_n <- which(validity_ratio >= proximity_threshold)[1]
   
