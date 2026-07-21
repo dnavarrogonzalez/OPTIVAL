@@ -1,6 +1,6 @@
 # OPTIVAL 1.0.0
 
-## Initial Release (2025-01-08)
+## Initial Release (2026-01-08)
 
 This is the first public release of OPTIVAL.
 
