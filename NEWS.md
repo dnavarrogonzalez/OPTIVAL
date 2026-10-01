@@ -1,3 +1,13 @@
+# OPTIVAL 1.0.2
+
+* New `plot()` method for `OPTIVAL` objects, which draws the three diagnostic
+  plots (item validity, incremental validity and validity curves with the
+  bootstrap interval), either together or one at a time (`which`). The
+  figures in the article are produced with this method.
+* The Shiny application uses the same visual encoding as `plot()`, shows the
+  bootstrap interval of the observed validity curve, and its plots can be
+  downloaded as high-resolution PNG files.
+
 # OPTIVAL 1.0.1
 
 ## New features

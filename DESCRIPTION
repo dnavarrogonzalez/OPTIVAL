@@ -1,8 +1,8 @@
 Package: OPTIVAL
 Type: Package
 Title: Model-Based Optimal Test Validity Analysis
-Version: 1.0.1
-Date: 2026-09-24
+Version: 1.0.2
+Date: 2026-10-01
 Authors@R: c(
     person("David", "Navarro-González", 
            email = "david.navarro@urv.cat", 
@@ -26,6 +26,8 @@ Encoding: UTF-8
 Depends:
     R (>= 4.0.0)
 Imports:
+    graphics,
+    grDevices,
     shiny (>= 1.7.0),
     lavaan (>= 0.6-0),
     DT (>= 0.20),

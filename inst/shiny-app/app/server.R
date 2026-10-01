@@ -284,266 +284,131 @@ server <- function(input, output, session) {
       )
   })
   
+  # ---------------------------------------------------------------------------
+  # Interactive plots. Same visual encoding as plot.OPTIVAL(), so that the
+  # figures produced in R and in the application look the same.
+  # ---------------------------------------------------------------------------
+  col <- list(observed = "#2a78d6", expected = "#eb6834", cutoff = "#1baf7a",
+              unselected = "#d3d2cc", ink = "#2b2b29", ink2 = "#6b6a66",
+              grid = "#e7e6e1", band = "rgba(42,120,214,0.16)")
+  base_layout <- function(p, title, xtitle, ytitle, ...) {
+    layout(p,
+           title = list(text = paste0("<b>", title, "</b>"), x = 0.02, xanchor = "left",
+                        font = list(size = 16, color = col$ink)),
+           xaxis = list(title = xtitle, gridcolor = col$grid, zeroline = FALSE,
+                        linecolor = "#b9b8b2", tickfont = list(color = col$ink2)),
+           yaxis = list(title = ytitle, gridcolor = col$grid, zeroline = FALSE,
+                        linecolor = "#b9b8b2", tickfont = list(color = col$ink2)),
+           font = list(family = "Arial, Helvetica, sans-serif", color = col$ink),
+           plot_bgcolor = "white", paper_bgcolor = "white", ...)
+  }
+  hi_res <- function(p, name) {
+    config(p, toImageButtonOptions = list(format = "png", filename = name,
+                                          width = 1050, height = 650, scale = 4))
+  }
+  
   # Plot 1: Item Validity
   output$plot_item_validity <- renderPlotly({
     req(values$results)
     res <- values$results
-    
-    p <- plot_ly() %>%
-      add_trace(
-        x = res$item_loadings,
-        y = res$validity_indices,
-        type = "scatter",
-        mode = "markers",
-        marker = list(
-          size = 10,
-          color = ifelse(1:res$n_items %in% res$optimal_items, "#27ae60", "#95a5a6"),
-          line = list(color = "#34495e", width = 1)
-        ),
-        text = paste("Item:", 1:res$n_items,
-                     "<br>Loading:", round(res$item_loadings, 4),
-                     "<br>Validity:", round(res$validity_indices, 4),
-                     "<br>Selected:", ifelse(1:res$n_items %in% res$optimal_items, "Yes", "No")),
-        hoverinfo = "text",
-        name = "Items"
-      ) %>%
-      add_trace(
-        x = res$item_loadings,
-        y = fitted(res$validity_lm),
-        type = "scatter",
-        mode = "lines",
-        line = list(color = "#3498db", width = 2, dash = "dash"),
-        name = sprintf("Linear fit (r = %.3f)", res$validity_correlation),
-        hoverinfo = "skip"
-      ) %>%
-      layout(
-        title = list(
-          text = "<b>Item Factor Loadings vs. Bootstrap Validity Indices</b>",
-          font = list(size = 16, color = "#2c3e50")
-        ),
-        xaxis = list(
-          title = "Factor Loading",
-          titlefont = list(size = 13, color = "#2c3e50"),
-          gridcolor = "#ecf0f1",
-          zeroline = FALSE
-        ),
-        yaxis = list(
-          title = "Item-Criterion Validity",
-          titlefont = list(size = 13, color = "#2c3e50"),
-          gridcolor = "#ecf0f1",
-          zeroline = FALSE
-        ),
-        plot_bgcolor = "white",
-        paper_bgcolor = "white",
-        showlegend = TRUE,
-        legend = list(x = 0.02, y = 0.98, font = list(size = 11))
-      )
-    
-    p
+    sel <- 1:res$n_items %in% res$optimal_items
+    ord <- order(res$item_loadings)
+    hover <- paste0("Item ", 1:res$n_items,
+                    "<br>Loading: ", sprintf("%.3f", res$item_loadings),
+                    "<br>Validity: ", sprintf("%.3f [%.3f, %.3f]", res$validity_indices,
+                                              res$validity_indices_ci[, "lower"],
+                                              res$validity_indices_ci[, "upper"]))
+    plot_ly() %>%
+      add_trace(x = res$item_loadings[ord], y = fitted(res$validity_lm)[ord],
+                type = "scatter", mode = "lines", hoverinfo = "skip",
+                line = list(color = col$ink2, width = 2, dash = "dash"),
+                name = sprintf("Linear fit (r = %.3f)", res$validity_correlation)) %>%
+      add_trace(x = res$item_loadings[!sel], y = res$validity_indices[!sel],
+                type = "scatter", mode = "markers", name = "Not selected",
+                text = hover[!sel], hoverinfo = "text",
+                marker = list(size = 12, color = col$unselected,
+                              line = list(color = "white", width = 1.5))) %>%
+      add_trace(x = res$item_loadings[sel], y = res$validity_indices[sel],
+                type = "scatter", mode = "markers", name = "Selected",
+                text = hover[sel], hoverinfo = "text",
+                marker = list(size = 12, color = col$observed,
+                              line = list(color = "white", width = 1.5))) %>%
+      base_layout("Item loadings vs. item validity", "Item factor loading (&#955;<sub>j</sub>)",
+                  "Item validity (bootstrap)",
+                  legend = list(x = 0.02, y = 0.98, bgcolor = "rgba(255,255,255,0.8)",
+                                traceorder = "reversed")) %>%
+      hi_res("optival_item_validity")
   })
   
   # Plot 2: Incremental Validity
   output$plot_incremental <- renderPlotly({
     req(values$results)
     res <- values$results
-    
-    p <- plot_ly() %>%
-      add_trace(
-        x = 1:res$n_items,
-        y = res$incremental_validity,
-        type = "scatter",
-        mode = "lines+markers",
-        line = list(color = "#2c3e50", width = 2),
-        marker = list(
-          size = 8,
-          color = "#2c3e50",
-          line = list(color = "#34495e", width = 1)
-        ),
-        name = "Incremental validity",
-        text = paste("N items:", 1:res$n_items,
-                     "<br>Δ validity:", round(res$incremental_validity, 4)),
-        hoverinfo = "text"
-      ) %>%
-      add_trace(
-        x = c(0, res$n_items + 1),
-        y = c(0, 0),
-        type = "scatter",
-        mode = "lines",
-        line = list(color = "#95a5a6", width = 1.5, dash = "dot"),
-        name = "Zero line",
-        hoverinfo = "skip"
-      ) %>%
-      layout(
-        title = list(
-          text = "<b>Item Incremental Validity</b>",
-          font = list(size = 16, color = "#2c3e50")
-        ),
-        xaxis = list(
-          title = "Number of Items in Test",
-          titlefont = list(size = 13, color = "#2c3e50"),
-          gridcolor = "#ecf0f1",
-          zeroline = FALSE,
-          range = c(0.5, res$n_items + 0.5)
-        ),
-        yaxis = list(
-          title = "Expected Incremental Validity (Δ)",
-          titlefont = list(size = 13, color = "#2c3e50"),
-          gridcolor = "#ecf0f1",
-          zeroline = TRUE,
-          zerolinecolor = "#95a5a6",
-          zerolinewidth = 1
-        ),
-        shapes = list(
-          list(
-            type = "line",
-            x0 = res$optimal_n_items,
-            x1 = res$optimal_n_items,
-            y0 = min(res$incremental_validity) - 0.01,
-            y1 = max(res$incremental_validity) + 0.01,
-            line = list(
-              color = "#27ae60",
-              width = 2,
-              dash = "dash"
-            )
-          )
-        ),
-        annotations = list(
-          list(
-            x = res$optimal_n_items,
-            y = max(res$incremental_validity),
-            text = sprintf("Optimal n = %d", res$optimal_n_items),
-            showarrow = TRUE,
-            arrowhead = 2,
-            arrowsize = 1,
-            arrowcolor = "#27ae60",
-            ax = 40,
-            ay = -40,
-            font = list(size = 11, color = "#27ae60"),
-            bgcolor = "rgba(255,255,255,0.9)",
-            bordercolor = "#27ae60",
-            borderwidth = 1,
-            borderpad = 6
-          )
-        ),
-        plot_bgcolor = "white",
-        paper_bgcolor = "white",
-        showlegend = TRUE,
-        legend = list(x = 0.7, y = 0.95, font = list(size = 11))
-      )
-    
-    p
+    n <- res$n_items; k <- res$optimal_n_items; d <- res$incremental_validity
+    plot_ly() %>%
+      add_trace(x = 1:n, y = d, type = "scatter", mode = "lines+markers",
+                fill = "tozeroy", fillcolor = "rgba(42,120,214,0.10)",
+                line = list(color = col$observed, width = 2.5),
+                marker = list(size = 9, color = ifelse(1:n <= k, col$observed, "white"),
+                              line = list(color = col$observed, width = 1.5)),
+                text = paste0("Item in position ", 1:n, "<br>&#916; = ", sprintf("%.4f", d)),
+                hoverinfo = "text", name = "Expected increment") %>%
+      base_layout("Incremental validity", "Number of items (order of entry)",
+                  "Expected increment (&#916;)", showlegend = FALSE,
+                  shapes = list(list(type = "line", x0 = k, x1 = k, yref = "paper", y0 = 0, y1 = 1,
+                                     line = list(color = col$cutoff, width = 2, dash = "dash"))),
+                  annotations = list(list(x = k, y = max(d) * 0.95, xanchor = "left",
+                                          text = sprintf("  <b>optimal n = %d</b>", k),
+                                          showarrow = FALSE, font = list(size = 12, color = col$ink)))) %>%
+      layout(xaxis = list(range = c(0.5, n + 0.5), dtick = if (n <= 25) 1 else NULL)) %>%
+      hi_res("optival_incremental_validity")
   })
   
   # Plot 3: Test Validity Curves
   output$plot_validity_curves <- renderPlotly({
     req(values$results)
     res <- values$results
-    
-    p <- plot_ly() %>%
-      add_trace(
-        x = 1:res$n_items,
-        y = res$observed_validity,
-        type = "scatter",
-        mode = "lines+markers",
-        line = list(color = "#2c3e50", width = 2),
-        marker = list(size = 7, color = "#2c3e50"),
-        name = "Observed (Bootstrap)",
-        text = paste("N items:", 1:res$n_items,
-                     "<br>Observed:", round(res$observed_validity, 4)),
-        hoverinfo = "text"
-      ) %>%
-      add_trace(
-        x = 1:res$n_items,
-        y = res$expected_validity,
-        type = "scatter",
-        mode = "lines+markers",
-        line = list(color = "#7f8c8d", width = 2, dash = "dash"),
-        marker = list(size = 7, color = "#7f8c8d"),
-        name = "Expected (Model)",
-        text = paste("N items:", 1:res$n_items,
-                     "<br>Expected:", round(res$expected_validity, 4)),
-        hoverinfo = "text"
-      ) %>%
-      layout(
-        title = list(
-          text = "<b>Test Validity Curves: Observed vs Expected</b>",
-          font = list(size = 16, color = "#2c3e50")
-        ),
-        xaxis = list(
-          title = "Number of Items in Test",
-          titlefont = list(size = 13, color = "#2c3e50"),
-          gridcolor = "#ecf0f1",
-          zeroline = FALSE,
-          range = c(0.5, res$n_items + 0.5)
-        ),
-        yaxis = list(
-          title = "Test Validity",
-          titlefont = list(size = 13, color = "#2c3e50"),
-          gridcolor = "#ecf0f1",
-          zeroline = FALSE,
-          range = c(0, max(c(res$observed_validity, 
-                             res$expected_validity, 
-                             res$criterion_loading)) * 1.1)
-        ),
-        shapes = list(
-          # Optimal n line
-          list(
-            type = "line",
-            x0 = res$optimal_n_items,
-            x1 = res$optimal_n_items,
-            y0 = 0,
-            y1 = max(c(res$observed_validity, res$expected_validity, res$criterion_loading)) * 1.1,
-            line = list(
-              color = "#27ae60",
-              width = 2,
-              dash = "dash"
-            )
-          ),
-          # Theoretical ceiling line
-          list(
-            type = "line",
-            x0 = 0,
-            x1 = res$n_items + 1,
-            y0 = res$criterion_loading,
-            y1 = res$criterion_loading,
-            line = list(
-              color = "#e74c3c",
-              width = 1.5,
-              dash = "dot"
-            )
-          )
-        ),
-        annotations = list(
-          list(
-            x = res$optimal_n_items,
-            y = 0.05,
-            text = sprintf("Optimal n = %d", res$optimal_n_items),
-            showarrow = FALSE,
-            font = list(size = 10, color = "#27ae60"),
-            bgcolor = "rgba(255,255,255,0.9)",
-            bordercolor = "#27ae60",
-            borderwidth = 1,
-            borderpad = 5
-          ),
-          list(
-            x = res$n_items * 0.7,
-            y = res$criterion_loading + 0.02,
-            text = sprintf("Theoretical ceiling = %.4f", res$criterion_loading),
-            showarrow = FALSE,
-            font = list(size = 10, color = "#e74c3c"),
-            bgcolor = "rgba(255,255,255,0.9)",
-            bordercolor = "#e74c3c",
-            borderwidth = 1,
-            borderpad = 5
-          )
-        ),
-        plot_bgcolor = "white",
-        paper_bgcolor = "white",
-        showlegend = TRUE,
-        legend = list(x = 0.65, y = 0.15, font = list(size = 11))
-      )
-    
-    p
+    n <- res$n_items; k <- res$optimal_n_items
+    obs <- res$observed_validity; ex <- res$expected_validity
+    ci <- res$observed_validity_ci
+    lev <- attr(ci, "ci_level"); if (is.null(lev)) lev <- 0.95
+    plot_ly() %>%
+      add_trace(x = c(1:n, n:1), y = c(ci[, "lower"], rev(ci[, "upper"])),
+                type = "scatter", mode = "lines", fill = "toself", fillcolor = col$band,
+                line = list(width = 0), hoverinfo = "skip",
+                name = sprintf("%g%% bootstrap interval", 100 * lev)) %>%
+      add_trace(x = 1:n, y = ex, type = "scatter", mode = "lines+markers",
+                name = "Expected (model)",
+                line = list(color = col$expected, width = 2.5, dash = "dash"),
+                marker = list(size = 8, color = "white", line = list(color = col$expected, width = 2)),
+                text = paste0("n = ", 1:n, "<br>Expected: ", sprintf("%.3f", ex)),
+                hoverinfo = "text") %>%
+      add_trace(x = 1:n, y = obs, type = "scatter", mode = "lines+markers",
+                name = "Observed (bootstrap)",
+                line = list(color = col$observed, width = 2.5),
+                marker = list(size = 9, color = col$observed, line = list(color = "white", width = 1.5)),
+                text = paste0("n = ", 1:n, "<br>Observed: ",
+                              sprintf("%.3f [%.3f, %.3f]", obs, ci[, "lower"], ci[, "upper"])),
+                hoverinfo = "text") %>%
+      base_layout("Test validity curves: observed vs. expected", "Number of items", "Test validity",
+                  legend = list(x = 0.98, xanchor = "right", y = 0.05, yanchor = "bottom",
+                                bgcolor = "rgba(255,255,255,0.8)", traceorder = "reversed"),
+                  shapes = list(
+                    list(type = "line", x0 = k, x1 = k, yref = "paper", y0 = 0, y1 = 1,
+                         line = list(color = col$cutoff, width = 2, dash = "dash")),
+                    list(type = "line", xref = "paper", x0 = 0, x1 = 1,
+                         y0 = res$criterion_loading, y1 = res$criterion_loading,
+                         line = list(color = col$ink, width = 1.5, dash = "dot"))),
+                  annotations = list(
+                    list(xref = "paper", x = 0.01, xanchor = "left", y = res$criterion_loading,
+                         yanchor = "bottom", showarrow = FALSE,
+                         text = sprintf("Theoretical ceiling (&#955;<sub>y</sub> = %.3f)", res$criterion_loading),
+                         font = list(size = 12, color = col$ink)),
+                    list(x = k, yref = "paper", y = 1, xanchor = "left", yanchor = "top",
+                         showarrow = FALSE, text = sprintf("  <b>optimal n = %d</b>", k),
+                         font = list(size = 12, color = col$ink)))) %>%
+      layout(xaxis = list(range = c(0.5, n + 0.5), dtick = if (n <= 25) 1 else NULL)) %>%
+      hi_res("optival_validity_curves")
   })
 }
 

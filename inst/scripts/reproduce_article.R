@@ -106,77 +106,16 @@ cat("Selected length across 30 seeds, Example 2:\n"); print(table(stability(d2, 
 # ------------------------------------------------------------------------------
 # Figures 3 and 4
 # ------------------------------------------------------------------------------
-plot_optival <- function(r, file) {
-  col_obs  <- "#2a78d6"   # observed (bootstrap) / selected items
-  col_exp  <- "#eb6834"   # expected (model)
-  col_cut  <- "#1baf7a"   # optimal cutoff
-  col_band <- adjustcolor(col_obs, alpha.f = 0.16)
-  ink <- "#2b2b29"; ink2 <- "#6b6a66"; grid_col <- "#e7e6e1"; muted <- "#b9b8b2"
-  panel <- function(xlim, ylim, xlab, ylab, title, letter, xat = NULL) {
-    plot.new(); plot.window(xlim, ylim)
-    yat <- pretty(ylim, 6); xat <- if (is.null(xat)) pretty(xlim, 6) else xat
-    abline(h = yat, v = xat, col = grid_col, lwd = 0.8)
-    axis(1, at = xat, col = NA, col.ticks = muted, col.axis = ink2, tcl = -0.25)
-    axis(2, at = yat, col = NA, col.ticks = muted, col.axis = ink2, tcl = -0.25)
-    segments(par("usr")[1], par("usr")[3], par("usr")[2], par("usr")[3], col = muted)
-    segments(par("usr")[1], par("usr")[3], par("usr")[1], par("usr")[4], col = muted)
-    title(xlab = xlab, ylab = ylab, col.lab = ink)
-    mtext(title, side = 3, line = 0.5, adj = 0, font = 2, col = ink, cex = 0.95)
-    mtext(letter, side = 3, line = 0.5, adj = 0,
-          at = grconvertX(par("fig")[1] + 0.008, from = "ndc", to = "user"),
-          font = 2, cex = 1.25, col = ink)
-  }
-  draw <- function() {
-    layout(matrix(c(1, 2, 3, 3), 2, byrow = TRUE), heights = c(1, 1.08))
-    par(mar = c(3.8, 4.3, 2.4, 1.2), mgp = c(2.4, 0.55, 0), las = 1, cex.axis = 0.9,
-        cex.lab = 1, family = "sans", fg = ink)
-    sel <- seq_len(r$n_items) %in% r$optimal_items
-    n <- r$n_items; k <- r$optimal_n_items
-    # A: loadings vs validity indices
-    xr <- range(r$item_loadings); yr <- range(r$validity_indices)
-    panel(xr + c(-0.02, 0.02), yr + c(-0.02, 0.04),
-          expression("Item factor loading (" * lambda[j] * ")"), "Item validity (bootstrap)",
-          "Item loadings vs. item validity", "A")
-    abline(r$validity_lm, lty = 2, col = ink2, lwd = 1.3)
-    points(r$item_loadings[!sel], r$validity_indices[!sel], pch = 21, bg = "#d3d2cc", col = "white", cex = 1.6, lwd = 1.2)
-    points(r$item_loadings[sel], r$validity_indices[sel], pch = 21, bg = col_obs, col = "white", cex = 1.6, lwd = 1.2)
-    legend("topleft", c("Selected", "Not selected", sprintf("Linear fit (r = %.3f)", r$validity_correlation)),
-           pch = c(21, 21, NA), pt.bg = c(col_obs, "#d3d2cc", NA), col = c("white", "white", ink2),
-           lty = c(NA, NA, 2), pt.cex = 1.5, bty = "n", cex = 0.88, text.col = ink, inset = c(0.01, 0))
-    # B: expected increments
-    xat <- unique(c(1, seq(5, n, 5), n))
-    panel(c(1, n), c(0, max(r$incremental_validity) * 1.08), "Number of items (order of entry)",
-          expression("Expected increment (" * Delta * ")"), "Incremental validity", "B", xat = xat)
-    abline(v = k, lty = 2, col = col_cut, lwd = 1.5)
-    polygon(c(1, 1:n, n), c(0, r$incremental_validity, 0), col = adjustcolor(col_obs, 0.10), border = NA)
-    lines(1:n, r$incremental_validity, col = col_obs, lwd = 2)
-    points(1:n, r$incremental_validity, pch = 21, bg = ifelse(1:n <= k, col_obs, "white"), col = col_obs, cex = 1.2, lwd = 1.2)
-    text(k, max(r$incremental_validity) * 0.95, paste0("  optimal n = ", k), adj = 0, cex = 0.88, col = ink, font = 2)
-    # C: validity curves with bootstrap percentile band
-    ci <- r$observed_validity_ci
-    ylim <- c(min(ci[, 1], r$expected_validity) - 0.02, r$criterion_loading + 0.03)
-    panel(c(1, n), ylim, "Number of items", "Test validity",
-          "Test validity curves: observed vs. expected", "C", xat = 1:n)
-    polygon(c(1:n, n:1), c(ci[, 1], rev(ci[, 2])), col = col_band, border = NA)
-    abline(h = r$criterion_loading, lty = 3, col = ink, lwd = 1.4)
-    abline(v = k, lty = 2, col = col_cut, lwd = 1.5)
-    lines(1:n, r$expected_validity, col = col_exp, lwd = 2, lty = 2)
-    points(1:n, r$expected_validity, pch = 21, bg = "white", col = col_exp, cex = 1.15, lwd = 1.4)
-    lines(1:n, r$observed_validity, col = col_obs, lwd = 2)
-    points(1:n, r$observed_validity, pch = 21, bg = col_obs, col = "white", cex = 1.35, lwd = 1)
-    text(1, r$criterion_loading,
-         bquote("Theoretical ceiling (" * lambda[y] * " = " * .(sprintf("%.3f", r$criterion_loading)) * ")"),
-         adj = c(0, -0.5), cex = 0.88, col = ink)
-    legend("bottomright", c("Observed (bootstrap)", "95% bootstrap interval", "Expected (model)", paste0("Optimal n = ", k)),
-           pch = c(21, 15, 21, NA), pt.bg = c(col_obs, NA, "white", NA), col = c(col_obs, col_band, col_exp, col_cut),
-           lty = c(1, NA, 2, 2), lwd = c(2, NA, 2, 1.5), pt.cex = c(1.3, 2.4, 1.1, NA), bty = "n", cex = 0.88,
-           text.col = ink, bg = "white")
-  }
+# The figures are drawn by the package's plot() method, exactly as any user
+# would obtain them.
+save_figure <- function(r, file) {
   png(paste0(file, ".png"), width = 7, height = 6.2, units = "in", res = 600,
-      pointsize = 10, family = "sans"); draw(); dev.off()
+      pointsize = 10)
+  plot(r); dev.off()
   tiff(paste0(file, ".tiff"), width = 7, height = 6.2, units = "in", res = 600,
-       pointsize = 10, family = "sans", compression = "lzw"); draw(); dev.off()
+       pointsize = 10, compression = "lzw")
+  plot(r); dev.off()
 }
-plot_optival(results, "Figure3_Example1")
-plot_optival(results2, "Figure4_Example2")
+save_figure(results, "Figure3_Example1")
+save_figure(results2, "Figure4_Example2")
 cat("\nFigures written to", getwd(), "\n")

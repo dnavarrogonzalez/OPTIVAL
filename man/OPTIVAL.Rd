@@ -185,14 +185,8 @@ print(results$optimal_n_items)
 print(results$optimal_items)
 print(results$max_observed_validity)
 
-# Plot validity curve
-plot(results$validity_by_n$n_items, results$validity_by_n$observed,
-     type = "b", xlab = "Number of Items", ylab = "Test Validity",
-     main = "Test Validity Curve")
-lines(results$validity_by_n$n_items, results$validity_by_n$expected,
-      col = "blue", lty = 2)
-legend("bottomright", legend = c("Observed", "Expected"),
-       col = c("black", "blue"), lty = c(1, 2))
+# Diagnostic plots (item validity, increments, validity curves)
+plot(results)
 }
 
 }
@@ -205,5 +199,6 @@ in the linear factor analysis model for continuous item responses.
 \emph{Applied Psychological Measurement, 33}(1), 9-24.
 }
 \seealso{
-\code{\link{run_optival}} for launching the interactive Shiny application
+\code{\link{plot.OPTIVAL}} for the diagnostic plots, and
+  \code{\link{run_optival}} for launching the interactive Shiny application
 }

@@ -182,17 +182,12 @@
 #' print(results$optimal_items)
 #' print(results$max_observed_validity)
 #' 
-#' # Plot validity curve
-#' plot(results$validity_by_n$n_items, results$validity_by_n$observed,
-#'      type = "b", xlab = "Number of Items", ylab = "Test Validity",
-#'      main = "Test Validity Curve")
-#' lines(results$validity_by_n$n_items, results$validity_by_n$expected,
-#'       col = "blue", lty = 2)
-#' legend("bottomright", legend = c("Observed", "Expected"),
-#'        col = c("black", "blue"), lty = c(1, 2))
+#' # Diagnostic plots (item validity, increments, validity curves)
+#' plot(results)
 #' }
 #' 
-#' @seealso \code{\link{run_optival}} for launching the interactive Shiny application
+#' @seealso \code{\link{plot.OPTIVAL}} for the diagnostic plots, and
+#'   \code{\link{run_optival}} for launching the interactive Shiny application
 #' 
 #' @export
 #' @importFrom lavaan cfa standardizedSolution fitMeasures
@@ -453,8 +448,9 @@ OPTIVAL <- function(data_matrix,
     # Test validity curves
     observed_validity = validity_results$medparc,
     observed_validity_se = validity_results$separc,
-    observed_validity_ci = cbind(lower = validity_results$lowparc,
-                                 upper = validity_results$upparc),
+    observed_validity_ci = structure(cbind(lower = validity_results$lowparc,
+                                           upper = validity_results$upparc),
+                                     ci_level = ci_level),
     expected_validity = validity_results$medparm,
     max_observed_validity = max_observed,
     max_observed_n = max_observed_n,
