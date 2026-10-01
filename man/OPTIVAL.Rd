@@ -10,6 +10,8 @@ OPTIVAL(
   n_bootstrap = 2000,
   efficiency_threshold = 0.1,
   effectiveness_threshold = 0.95,
+  criterion_loading_se = NULL,
+  ci_level = 0.95,
   verbose = FALSE
 )
 }
@@ -41,6 +43,17 @@ negligible additional information (efficiency criterion). Default is 0.10.}
 maximum achievable validity that the selected subset must capture
 (effectiveness criterion). Default is 0.95.}
 
+\item{criterion_loading_se}{Optional numeric. Standard error of the
+(standardized) criterion loading, used only when \code{precalibrated_loadings}
+are supplied, to compute a Wald confidence interval for the validity
+ceiling (e.g., the S.E. of the STDYX estimate reported by Mplus). If
+\code{NULL} (default) and loadings are precalibrated, the interval is
+reported as \code{NA}. Ignored when loadings are estimated internally, in
+which case the standard error is taken from the lavaan solution.}
+
+\item{ci_level}{Numeric in (0, 1). Confidence level of all intervals reported
+(criterion loading and bootstrap percentile intervals). Default is 0.95.}
+
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages during
 execution. Default is \code{FALSE}.}
 }
@@ -58,6 +71,9 @@ An object of class \code{"OPTIVAL"}, which is a list containing:
 \itemize{
   \item \code{item_loadings} Vector of item factor loadings
   \item \code{criterion_loading} Criterion factor loading (theoretical validity ceiling)
+  \item \code{criterion_loading_ci} Named vector with the estimate, standard
+    error and confidence limits (\code{lower}, \code{upper}) of the criterion
+    loading
   \item \code{item_order} Recommended item ordering by incremental validity
   \item \code{model_fit} Named vector of CFA fit indices (χ², CFI, TLI, RMSEA, SRMR),
     or \code{NULL} if precalibrated loadings were used
@@ -66,6 +82,9 @@ An object of class \code{"OPTIVAL"}, which is a list containing:
 \strong{Validity Analysis:}
 \itemize{
   \item \code{validity_indices} Bootstrap-based item-criterion correlations
+  \item \code{validity_indices_se} Bootstrap standard errors of the validity indices
+  \item \code{validity_indices_ci} Matrix (items x 2) with the percentile
+    confidence limits of the validity indices
   \item \code{validity_correlation} Correlation between item loadings and validity indices
   \item \code{incremental_validity} Expected incremental contribution of each item
 }
@@ -81,10 +100,15 @@ An object of class \code{"OPTIVAL"}, which is a list containing:
 \strong{Test Validity Curves:}
 \itemize{
   \item \code{observed_validity} Bootstrap-estimated validity for each test length
+  \item \code{observed_validity_se} Bootstrap standard error of the observed
+    validity for each test length
+  \item \code{observed_validity_ci} Matrix (test lengths x 2) with the
+    percentile confidence limits of the observed validity
   \item \code{expected_validity} Model-predicted validity for each test length
   \item \code{max_observed_validity} Maximum observed validity coefficient
   \item \code{max_observed_n} Test length at maximum validity
-  \item \code{validity_by_n} Data frame with all validity measures by test length
+  \item \code{validity_by_n} Data frame with all validity measures by test
+    length, including the confidence limits of the observed validity
 }
 }
 \description{

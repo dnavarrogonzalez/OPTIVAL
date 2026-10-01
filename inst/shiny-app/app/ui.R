@@ -164,7 +164,10 @@ ui <- fluidPage(
                              "Precalibrated Loadings (optional, CSV/TXT)",
                              accept = c(".csv", ".txt"),
                              buttonLabel = "Browse...",
-                             placeholder = "No file selected")
+                             placeholder = "No file selected"),
+                   numericInput("criterion_se",
+                                "S.E. of the criterion loading (optional, only with precalibrated loadings)",
+                                value = NA, min = 0, step = 0.001)
             )
           ),
           

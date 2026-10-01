@@ -4,7 +4,7 @@
 \alias{simulboot}
 \title{Bootstrap Simulation of Test Validity Curves}
 \usage{
-simulboot(lam, ordlam, Ztot, nreplic)
+simulboot(lam, ordlam, Ztot, nreplic, ci_level = 0.95)
 }
 \arguments{
 \item{lam}{Vector of all factor loadings (items + criterion). The last 
@@ -16,14 +16,21 @@ be added to the test}
 \item{Ztot}{Standardized matrix containing all variables (items + criterion)}
 
 \item{nreplic}{Integer, number of bootstrap replications}
+
+\item{ci_level}{Numeric in (0, 1), confidence level of the percentile
+intervals for the observed curve. Default is 0.95.}
 }
 \value{
-A list with three components:
+A list with the following components:
   \item{nite}{Integer vector from 1 to m (number of items)}
   \item{medparc}{Numeric vector of mean observed (bootstrap) validity for 
     each test length}
   \item{medparm}{Numeric vector of expected (model-based) validity for 
     each test length}
+  \item{separc}{Bootstrap standard error of the observed validity for each
+    test length}
+  \item{lowparc, upparc}{Limits of the percentile confidence interval of the
+    observed validity for each test length}
 }
 \description{
 Simulates the test validity curve (validity as a function of test length) 

@@ -96,6 +96,8 @@ server <- function(input, output, session) {
         data_matrix = data_matrix,
         precalibrated_loadings = precalibrated_loadings,
         n_bootstrap = input$n_bootstrap,
+        criterion_loading_se = if (!is.null(precalibrated_loadings) &&
+                                   isTRUE(input$criterion_se > 0)) input$criterion_se else NULL,
         verbose = FALSE
       )
       
@@ -154,7 +156,10 @@ server <- function(input, output, session) {
           ),
           div(class = "summary-item",
               span(class = "summary-label", "Criterion loading (theoretical validity ceiling):"),
-              span(class = "summary-value", sprintf("λ = %.4f", res$criterion_loading))
+              span(class = "summary-value",
+                   if (is.na(res$criterion_loading_ci["lower"])) sprintf("λ = %.4f", res$criterion_loading)
+                   else sprintf("λ = %.4f [%.4f, %.4f]", res$criterion_loading,
+                                res$criterion_loading_ci["lower"], res$criterion_loading_ci["upper"]))
           )
       ),
       
@@ -176,7 +181,9 @@ server <- function(input, output, session) {
           div(class = "summary-item",
               span(class = "summary-label", "Bootstrap empirical validity (optimal subset):"),
               span(class = "summary-value", 
-                   sprintf("%.4f", res$observed_validity[res$optimal_n_items]))
+                   sprintf("%.4f [%.4f, %.4f]", res$observed_validity[res$optimal_n_items],
+                           res$observed_validity_ci[res$optimal_n_items, "lower"],
+                           res$observed_validity_ci[res$optimal_n_items, "upper"]))
           ),
           div(class = "summary-item",
               span(class = "summary-label", "Expected validity (optimal subset):"),
@@ -246,6 +253,8 @@ server <- function(input, output, session) {
       Item = sel_order,
       Loading = round(res$item_loadings[sel_order], 4),
       `Validity (Bootstrap)` = round(res$validity_indices[sel_order], 4),
+      `Validity CI` = sprintf("[%.3f, %.3f]", res$validity_indices_ci[sel_order, "lower"],
+                              res$validity_indices_ci[sel_order, "upper"]),
       `Incremental Validity` = round(res$incremental_validity, 4),  # ya en orden de selección
       Selected = ifelse(sel_order %in% res$optimal_items, "Yes", "No"),
       check.names = FALSE

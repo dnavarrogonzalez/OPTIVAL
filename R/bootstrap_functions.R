@@ -40,27 +40,33 @@ bootsam2 <- function(X, nsam) {
 
 #' Bootstrap-Based Item Validity Indices
 #' 
-#' Computes bootstrap-based estimates of item-criterion validity coefficients.
+#' Computes bootstrap-based estimates of item-criterion validity coefficients,
+#' together with their bootstrap standard errors and percentile confidence
+#' intervals.
 #' 
 #' @param ZX Standardized matrix of item scores (N x m)
 #' @param zy Standardized vector of criterion scores (N x 1)
 #' @param lam Vector of item factor loadings (not used in current implementation
 #'   but kept for compatibility)
 #' @param nreplic Integer, number of bootstrap replications
+#' @param ci_level Numeric in (0, 1), confidence level of the percentile
+#'   intervals. Default is 0.95.
 #' 
-#' @return A numeric vector of length m containing the mean item-criterion
-#'   correlations across bootstrap replications
+#' @return A list with four numeric vectors of length m:
+#'   \item{mean}{Mean item-criterion correlation across bootstrap replications}
+#'   \item{se}{Bootstrap standard error (SD across replications)}
+#'   \item{lower}{Lower limit of the percentile confidence interval}
+#'   \item{upper}{Upper limit of the percentile confidence interval}
 #' 
 #' @details This function estimates the item-criterion validity indices by:
 #' 1. Generating bootstrap samples of the combined item and criterion data
 #' 2. Computing item-criterion correlations in each bootstrap sample
-#' 3. Averaging across replications to obtain stable estimates
-#' 
-#' The bootstrap procedure helps avoid capitalization on chance and provides
-#' more robust validity estimates than single-sample correlations.
+#' 3. Averaging across replications to obtain stable estimates, and taking the
+#'    SD and the empirical quantiles of the replications as the standard error
+#'    and the percentile confidence interval
 #' 
 #' @keywords internal
-compaboot <- function(ZX, zy, lam, nreplic) {
+compaboot <- function(ZX, zy, lam, nreplic, ci_level = 0.95) {
   n <- nrow(ZX)
   m <- ncol(ZX)
   TOTVAL <- matrix(0, nreplic, m)
@@ -73,8 +79,13 @@ compaboot <- function(ZX, zy, lam, nreplic) {
     TOTVAL[i, ] <- tmpcol
   }
   
-  compa <- colMeans(TOTVAL)
-  return(compa)
+  alpha <- (1 - ci_level) / 2
+  list(
+    mean  = colMeans(TOTVAL),
+    se    = apply(TOTVAL, 2, sd),
+    lower = apply(TOTVAL, 2, quantile, probs = alpha, names = FALSE),
+    upper = apply(TOTVAL, 2, quantile, probs = 1 - alpha, names = FALSE)
+  )
 }
 
 #' Bootstrap Simulation of Test Validity Curves
@@ -88,13 +99,19 @@ compaboot <- function(ZX, zy, lam, nreplic) {
 #'   be added to the test
 #' @param Ztot Standardized matrix containing all variables (items + criterion)
 #' @param nreplic Integer, number of bootstrap replications
+#' @param ci_level Numeric in (0, 1), confidence level of the percentile
+#'   intervals for the observed curve. Default is 0.95.
 #' 
-#' @return A list with three components:
+#' @return A list with the following components:
 #'   \item{nite}{Integer vector from 1 to m (number of items)}
 #'   \item{medparc}{Numeric vector of mean observed (bootstrap) validity for 
 #'     each test length}
 #'   \item{medparm}{Numeric vector of expected (model-based) validity for 
 #'     each test length}
+#'   \item{separc}{Bootstrap standard error of the observed validity for each
+#'     test length}
+#'   \item{lowparc, upparc}{Limits of the percentile confidence interval of the
+#'     observed validity for each test length}
 #' 
 #' @details This function:
 #' 1. Computes the model-predicted validity curve based on factor loadings
@@ -106,7 +123,7 @@ compaboot <- function(ZX, zy, lam, nreplic) {
 #' how well the model predictions match empirical data.
 #' 
 #' @keywords internal
-simulboot <- function(lam, ordlam, Ztot, nreplic) {
+simulboot <- function(lam, ordlam, Ztot, nreplic, ci_level = 0.95) {
   nit <- length(lam)
   ZX <- Ztot[, 1:(nit-1)]
   zy <- Ztot[, nit]
@@ -149,6 +166,10 @@ simulboot <- function(lam, ordlam, Ztot, nreplic) {
   }
   
   medparc <- colMeans(TOTPARC)
+  alpha <- (1 - ci_level) / 2
   
-  return(list(nite = nite, medparc = medparc, medparm = medparm))
+  return(list(nite = nite, medparc = medparc, medparm = medparm,
+              separc = apply(TOTPARC, 2, sd),
+              lowparc = apply(TOTPARC, 2, quantile, probs = alpha, names = FALSE),
+              upparc = apply(TOTPARC, 2, quantile, probs = 1 - alpha, names = FALSE)))
 }

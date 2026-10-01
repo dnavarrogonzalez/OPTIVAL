@@ -37,6 +37,17 @@
 #'   maximum achievable validity that the selected subset must capture
 #'   (effectiveness criterion). Default is 0.95.
 #'   
+#' @param criterion_loading_se Optional numeric. Standard error of the
+#'   (standardized) criterion loading, used only when \code{precalibrated_loadings}
+#'   are supplied, to compute a Wald confidence interval for the validity
+#'   ceiling (e.g., the S.E. of the STDYX estimate reported by Mplus). If
+#'   \code{NULL} (default) and loadings are precalibrated, the interval is
+#'   reported as \code{NA}. Ignored when loadings are estimated internally, in
+#'   which case the standard error is taken from the lavaan solution.
+#'   
+#' @param ci_level Numeric in (0, 1). Confidence level of all intervals reported
+#'   (criterion loading and bootstrap percentile intervals). Default is 0.95.
+#'   
 #' @param verbose Logical. If \code{TRUE}, prints progress messages during
 #'   execution. Default is \code{FALSE}.
 #'   
@@ -53,6 +64,9 @@
 #' \itemize{
 #'   \item \code{item_loadings} Vector of item factor loadings
 #'   \item \code{criterion_loading} Criterion factor loading (theoretical validity ceiling)
+#'   \item \code{criterion_loading_ci} Named vector with the estimate, standard
+#'     error and confidence limits (\code{lower}, \code{upper}) of the criterion
+#'     loading
 #'   \item \code{item_order} Recommended item ordering by incremental validity
 #'   \item \code{model_fit} Named vector of CFA fit indices (χ², CFI, TLI, RMSEA, SRMR),
 #'     or \code{NULL} if precalibrated loadings were used
@@ -61,6 +75,9 @@
 #' \strong{Validity Analysis:}
 #' \itemize{
 #'   \item \code{validity_indices} Bootstrap-based item-criterion correlations
+#'   \item \code{validity_indices_se} Bootstrap standard errors of the validity indices
+#'   \item \code{validity_indices_ci} Matrix (items x 2) with the percentile
+#'     confidence limits of the validity indices
 #'   \item \code{validity_correlation} Correlation between item loadings and validity indices
 #'   \item \code{incremental_validity} Expected incremental contribution of each item
 #' }
@@ -76,10 +93,15 @@
 #' \strong{Test Validity Curves:}
 #' \itemize{
 #'   \item \code{observed_validity} Bootstrap-estimated validity for each test length
+#'   \item \code{observed_validity_se} Bootstrap standard error of the observed
+#'     validity for each test length
+#'   \item \code{observed_validity_ci} Matrix (test lengths x 2) with the
+#'     percentile confidence limits of the observed validity
 #'   \item \code{expected_validity} Model-predicted validity for each test length
 #'   \item \code{max_observed_validity} Maximum observed validity coefficient
 #'   \item \code{max_observed_n} Test length at maximum validity
-#'   \item \code{validity_by_n} Data frame with all validity measures by test length
+#'   \item \code{validity_by_n} Data frame with all validity measures by test
+#'     length, including the confidence limits of the observed validity
 #' }
 #' 
 #' @details 
@@ -174,13 +196,20 @@
 #' 
 #' @export
 #' @importFrom lavaan cfa standardizedSolution fitMeasures
-#' @importFrom stats cor lm
+#' @importFrom stats cor lm qnorm quantile sd
 OPTIVAL <- function(data_matrix, 
                     precalibrated_loadings = NULL,
                     n_bootstrap = 2000,
                     efficiency_threshold = 0.10,
                     effectiveness_threshold = 0.95,
+                    criterion_loading_se = NULL,
+                    ci_level = 0.95,
                     verbose = FALSE) {
+  
+  if (!is.numeric(ci_level) || ci_level <= 0 || ci_level >= 1) {
+    stop("ci_level must be a number in (0, 1).")
+  }
+  z_crit <- qnorm(1 - (1 - ci_level) / 2)
   
   # Standardize data matrix
   Z_total <- scale(data_matrix)
@@ -204,11 +233,16 @@ OPTIVAL <- function(data_matrix,
     calib <- tryCatch({
       fit <- lavaan::cfa(model_syntax, data = df_cfa, estimator = "MLM", std.lv = TRUE)
       
-      std_solution <- lavaan::standardizedSolution(fit)
-      loadings_all <- std_solution$est.std[std_solution$op == "=~"]
+      std_solution <- lavaan::standardizedSolution(fit, level = ci_level)
+      std_load <- std_solution[std_solution$op == "=~", ]
+      loadings_all <- std_load$est.std
       
       list(item_loadings = loadings_all[1:n_items],
            criterion_loading = loadings_all[n_vars],
+           criterion_ci = c(estimate = loadings_all[n_vars],
+                            se = std_load$se[n_vars],
+                            lower = std_load$ci.lower[n_vars],
+                            upper = std_load$ci.upper[n_vars]),
            fit_measures = lavaan::fitMeasures(fit, c("chisq", "df", "pvalue", 
                                               "cfi", "tli", "rmsea", 
                                               "rmsea.ci.lower", "rmsea.ci.upper",
@@ -225,11 +259,14 @@ OPTIVAL <- function(data_matrix,
       
       list(item_loadings = loadings_pc[1:n_items],
            criterion_loading = loadings_pc[n_vars],
+           criterion_ci = c(estimate = loadings_pc[n_vars], se = NA_real_,
+                            lower = NA_real_, upper = NA_real_),
            fit_measures = NULL)
     })
     item_loadings <- calib$item_loadings
     criterion_loading <- calib$criterion_loading
     fit_measures <- calib$fit_measures
+    criterion_loading_ci <- calib$criterion_ci
     
   } else {
     # Use precalibrated loadings
@@ -262,6 +299,22 @@ OPTIVAL <- function(data_matrix,
     criterion_loading <- precalibrated_loadings[n_vars]
     fit_measures <- NULL
     
+    if (!is.null(criterion_loading_se)) {
+      if (!is.numeric(criterion_loading_se) || length(criterion_loading_se) != 1 ||
+          is.na(criterion_loading_se) || criterion_loading_se <= 0) {
+        stop("criterion_loading_se must be a single positive number.")
+      }
+      criterion_loading_ci <- c(estimate = criterion_loading,
+                                se = criterion_loading_se,
+                                lower = criterion_loading - z_crit * criterion_loading_se,
+                                upper = criterion_loading + z_crit * criterion_loading_se)
+    } else {
+      criterion_loading_ci <- c(estimate = criterion_loading, se = NA_real_,
+                                lower = NA_real_, upper = NA_real_)
+      if (verbose) cat("No criterion_loading_se supplied: the confidence interval",
+                       "of the criterion loading is not available.\n")
+    }
+    
   }
   
   # Order items by loading
@@ -271,7 +324,10 @@ OPTIVAL <- function(data_matrix,
   # ITEM VALIDITY PLOT (Bootstrap-based)
   # ===========================================================================
   
-  validity_indices <- compaboot(Z_items, z_criterion, item_loadings, n_bootstrap)
+  validity_boot <- compaboot(Z_items, z_criterion, item_loadings, n_bootstrap,
+                             ci_level = ci_level)
+  validity_indices <- validity_boot$mean
+  validity_indices_ci <- cbind(lower = validity_boot$lower, upper = validity_boot$upper)
   
   fit_lm <- lm(validity_indices ~ item_loadings)
   r_validity <- cor(item_loadings, validity_indices)
@@ -293,7 +349,8 @@ OPTIVAL <- function(data_matrix,
   
   # First, compute validity curves to get maximum achievable validity
   loadings_all <- c(item_loadings, criterion_loading)
-  validity_results <- simulboot(loadings_all, item_order, Z_total, n_bootstrap)
+  validity_results <- simulboot(loadings_all, item_order, Z_total, n_bootstrap,
+                                ci_level = ci_level)
   max_validity <- max(validity_results$medparc)
   
   # Method 1: Elbow based on relative increments (original method)
@@ -374,11 +431,14 @@ OPTIVAL <- function(data_matrix,
     # Factor analysis results
     item_loadings = item_loadings,
     criterion_loading = criterion_loading,
+    criterion_loading_ci = criterion_loading_ci,
     item_order = item_order,
     model_fit = fit_measures,
     
     # Validity analysis results
     validity_indices = validity_indices,
+    validity_indices_se = validity_boot$se,
+    validity_indices_ci = validity_indices_ci,
     validity_correlation = r_validity,
     validity_lm = fit_lm,
     
@@ -392,6 +452,9 @@ OPTIVAL <- function(data_matrix,
     
     # Test validity curves
     observed_validity = validity_results$medparc,
+    observed_validity_se = validity_results$separc,
+    observed_validity_ci = cbind(lower = validity_results$lowparc,
+                                 upper = validity_results$upparc),
     expected_validity = validity_results$medparm,
     max_observed_validity = max_observed,
     max_observed_n = max_observed_n,
@@ -400,6 +463,8 @@ OPTIVAL <- function(data_matrix,
     validity_by_n = data.frame(
       n_items = validity_results$nite,
       observed = validity_results$medparc,
+      observed_lower = validity_results$lowparc,
+      observed_upper = validity_results$upparc,
       expected = validity_results$medparm,
       incremental = burisch_results$deltabur
     )

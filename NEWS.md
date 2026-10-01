@@ -1,3 +1,23 @@
+# OPTIVAL 1.0.1
+
+## New features
+
+* `OPTIVAL()` now reports the uncertainty of its main estimates:
+  * `criterion_loading_ci`: estimate, standard error and confidence interval of
+    the criterion loading (validity ceiling). When loadings are estimated
+    internally, these come from the lavaan solution; with precalibrated
+    loadings, the new argument `criterion_loading_se` (e.g., the S.E. reported
+    by Mplus) is used to compute a Wald interval.
+  * `validity_indices_se` and `validity_indices_ci`: bootstrap standard errors
+    and percentile confidence intervals of the item validity indices.
+  * `observed_validity_se` and `observed_validity_ci`: the same for the
+    observed (bootstrap) validity at each test length; `validity_by_n` gains
+    the columns `observed_lower` and `observed_upper`.
+* New argument `ci_level` (default 0.95) sets the level of all intervals.
+* The Shiny application shows these intervals in the summary and in the
+  results table, and accepts the optional S.E. of a precalibrated criterion
+  loading.
+
 # OPTIVAL 1.0.0
 
 ## Initial Release (2026-01-08)

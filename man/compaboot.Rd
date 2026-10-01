@@ -4,7 +4,7 @@
 \alias{compaboot}
 \title{Bootstrap-Based Item Validity Indices}
 \usage{
-compaboot(ZX, zy, lam, nreplic)
+compaboot(ZX, zy, lam, nreplic, ci_level = 0.95)
 }
 \arguments{
 \item{ZX}{Standardized matrix of item scores (N x m)}
@@ -15,21 +15,28 @@ compaboot(ZX, zy, lam, nreplic)
 but kept for compatibility)}
 
 \item{nreplic}{Integer, number of bootstrap replications}
+
+\item{ci_level}{Numeric in (0, 1), confidence level of the percentile
+intervals. Default is 0.95.}
 }
 \value{
-A numeric vector of length m containing the mean item-criterion
-  correlations across bootstrap replications
+A list with four numeric vectors of length m:
+  \item{mean}{Mean item-criterion correlation across bootstrap replications}
+  \item{se}{Bootstrap standard error (SD across replications)}
+  \item{lower}{Lower limit of the percentile confidence interval}
+  \item{upper}{Upper limit of the percentile confidence interval}
 }
 \description{
-Computes bootstrap-based estimates of item-criterion validity coefficients.
+Computes bootstrap-based estimates of item-criterion validity coefficients,
+together with their bootstrap standard errors and percentile confidence
+intervals.
 }
 \details{
 This function estimates the item-criterion validity indices by:
 1. Generating bootstrap samples of the combined item and criterion data
 2. Computing item-criterion correlations in each bootstrap sample
-3. Averaging across replications to obtain stable estimates
-
-The bootstrap procedure helps avoid capitalization on chance and provides
-more robust validity estimates than single-sample correlations.
+3. Averaging across replications to obtain stable estimates, and taking the
+   SD and the empirical quantiles of the replications as the standard error
+   and the percentile confidence interval
 }
 \keyword{internal}
